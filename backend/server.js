@@ -12,18 +12,24 @@ app.use(express.json());
 app.get('/api/rates', async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT buy_rate, sell_rate, created_at 
-      FROM exchange_rates 
-      ORDER BY created_at DESC 
+      SELECT precio_compra, precio_venta, fecha_creacion 
+      FROM tipos_cambio 
+      ORDER BY fecha_creacion DESC 
       LIMIT 1
     `);
 
     if (rows.length > 0) {
-      const rate = rows[0];
+      const tasa = rows[0];
       res.json({
-        buy: parseFloat(rate.buy_rate).toFixed(4),
-        sell: parseFloat(rate.sell_rate).toFixed(4),
-        lastUpdate: new Date(rate.created_at).toLocaleString('es-MX')
+        buy: parseFloat(tasa.precio_compra).toFixed(4),
+        sell: parseFloat(tasa.precio_venta).toFixed(4),
+        lastUpdate: new Date(tasa.fecha_creacion).toLocaleString('es-MX', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
       });
     } else {
       res.json({
@@ -33,7 +39,7 @@ app.get('/api/rates', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error al obtener tasas:', error);
     res.status(500).json({ error: 'Error al obtener datos' });
   }
 });
@@ -47,21 +53,35 @@ app.post('/api/rates', async (req, res) => {
       return res.status(400).json({ error: 'Datos incompletos' });
     }
 
+    const compra = parseFloat(buy);
+    const venta = parseFloat(sell);
+
+    // Validar que la venta sea mayor que la compra
+    if (venta <= compra) {
+      return res.status(400).json({ error: 'El precio de venta debe ser mayor al de compra' });
+    }
+
     await db.query(
-      'INSERT INTO exchange_rates (buy_rate, sell_rate) VALUES (?, ?)',
-      [parseFloat(buy), parseFloat(sell)]
+      'INSERT INTO tipos_cambio (precio_compra, precio_venta) VALUES (?, ?)',
+      [compra, venta]
     );
 
     res.json({
       success: true,
       data: {
-        buy: parseFloat(buy).toFixed(4),
-        sell: parseFloat(sell).toFixed(4),
-        lastUpdate: new Date().toLocaleString('es-MX')
+        buy: compra.toFixed(4),
+        sell: venta.toFixed(4),
+        lastUpdate: new Date().toLocaleString('es-MX', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
       }
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error al guardar tasa:', error);
     res.status(500).json({ error: 'Error al guardar datos' });
   }
 });
@@ -70,26 +90,38 @@ app.post('/api/rates', async (req, res) => {
 app.get('/api/rates/history', async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT id, buy_rate, sell_rate, created_at 
-      FROM exchange_rates 
-      ORDER BY created_at DESC 
+      SELECT id, precio_compra, precio_venta, fecha_creacion 
+      FROM tipos_cambio 
+      ORDER BY fecha_creacion DESC 
       LIMIT 20
     `);
 
-    const history = rows.map(row => ({
-      id: row.id,
-      buy: parseFloat(row.buy_rate).toFixed(4),
-      sell: parseFloat(row.sell_rate).toFixed(4),
-      date: new Date(row.created_at).toLocaleString('es-MX')
+    const historial = rows.map(tasa => ({
+      id: tasa.id,
+      buy: parseFloat(tasa.precio_compra).toFixed(4),
+      sell: parseFloat(tasa.precio_venta).toFixed(4),
+      date: new Date(tasa.fecha_creacion).toLocaleString('es-MX', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })
     }));
 
-    res.json(history);
+    res.json(historial);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error al obtener historial:', error);
     res.status(500).json({ error: 'Error al obtener historial' });
   }
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`📊 Base de datos: MySQL (tipos_cambio)`);
+  console.log(`🌐 Endpoints disponibles:`);
+  console.log(`   GET  /api/rates         - Obtener tasa actual`);
+  console.log(`   POST /api/rates         - Guardar nueva tasa`);
+  console.log(`   GET  /api/rates/history - Obtener historial`);
 });

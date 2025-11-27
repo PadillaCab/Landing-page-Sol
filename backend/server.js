@@ -3,10 +3,22 @@ const cors = require('cors');
 const db = require('./db');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'Mosol2511'; // Cambiar en producción
 
 app.use(cors());
 app.use(express.json());
+
+// Middleware de autenticación
+const requireAdmin = (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token || token !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'No autorizado. Token requerido o inválido.' });
+  }
+  
+  next();
+};
 
 // GET - Obtener la tasa más reciente
 app.get('/api/rates', async (req, res) => {
@@ -45,7 +57,7 @@ app.get('/api/rates', async (req, res) => {
 });
 
 // POST - Guardar nueva tasa
-app.post('/api/rates', async (req, res) => {
+app.post('/api/rates', requireAdmin, async (req, res) => {
   try {
     const { buy, sell } = req.body;
 
@@ -87,7 +99,7 @@ app.post('/api/rates', async (req, res) => {
 });
 
 // GET - Obtener historial (últimas 20 tasas)
-app.get('/api/rates/history', async (req, res) => {
+app.get('/api/rates/history', requireAdmin, async (req, res) => {
   try {
     const [rows] = await db.query(`
       SELECT id, precio_compra, precio_venta, fecha_creacion 
@@ -118,10 +130,11 @@ app.get('/api/rates/history', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📊 Base de datos: MySQL (tipos_cambio)`);
-  console.log(`🌐 Endpoints disponibles:`);
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Base de datos: MySQL (tipos_cambio)`);
+  console.log(`Endpoints disponibles:`);
   console.log(`   GET  /api/rates         - Obtener tasa actual`);
   console.log(`   POST /api/rates         - Guardar nueva tasa`);
   console.log(`   GET  /api/rates/history - Obtener historial`);
 });
+S

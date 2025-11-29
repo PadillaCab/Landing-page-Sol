@@ -4,7 +4,7 @@ const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'Mosol2511'; // Cambiar en producción
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'Mosol2511'; //contraseña admin
 
 app.use(cors());
 app.use(express.json());
@@ -137,4 +137,3 @@ app.listen(PORT, () => {
   console.log(`   POST /api/rates         - Guardar nueva tasa`);
   console.log(`   GET  /api/rates/history - Obtener historial`);
 });
-S
